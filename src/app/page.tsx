@@ -84,20 +84,47 @@ export default function Home() {
 
     return () => clearInterval(intervalId);
   }, [])
+
+  useEffect(() => {
+    const storedImages = localStorage.getItem("images");
+    if (storedImages) {
+      setImages(JSON.parse(storedImages));
+    }
+  }, []);
+  
   useEffect(() => {
     setfilteredImages(
       images.filter(image => image.prompt.includes(search))
     );
   }, [search, images]);
+
+
+  const blob2base64 = (blob: Blob, mimeType: string) => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrlPrefix = `data:${mimeType};base64,`;
+        const base64WithDataUrlPrefix = reader.result as string;
+        const base64 = base64WithDataUrlPrefix.replace(dataUrlPrefix, '');
+        console.log(base64);
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+  
+
   const handlePrompt = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formElement = e.currentTarget.elements
-    const prompt = formElement.namedItem("prompt") as HTMLInputElement
+    const formElement = e.currentTarget.elements;
+    const prompt = formElement.namedItem("prompt") as HTMLInputElement;
     const headers = {
       'Authorization': `Bearer ${process.env.API_TOKEN}`,
       'Content-Type': 'application/json',
     };
-    setIsLoading(true)
+    setIsLoading(true);
+    
     fetch(`${process.env.API_URL}`, {
       method: 'POST',
       headers: headers,
@@ -105,45 +132,60 @@ export default function Home() {
     })
       .then(response => response.blob())
       .then(imageBlob => {
-        const imageUrl = URL.createObjectURL(imageBlob);
-        setImages((prevImage) => [
-          ...prevImage,
-          {
-            id: imageUrl,
-            image: imageUrl,
-            prompt: prompt.value
-          }
-        ])
-        setIsLoading(false)
-        setIsDialogOpen(false);
-        const jsConfetti = new JSConfetti()
-        jsConfetti.addConfetti()
+        // Convert blob to base64
+        blob2base64(imageBlob, 'image/png').then(base64Image => {
+          // Use the base64 image in your app
+          
+          setImages((prevImages) => {
+            const updatedImages = [
+              ...prevImages,
+              {
+                id: base64Image,
+                image: base64Image,  // Store the base64 string as image source
+                prompt: prompt.value,
+              },
+            ];
+            console.log(base64Image);
+            localStorage.setItem("images", JSON.stringify(updatedImages));
+            return updatedImages;
+          });
+  
+          setIsLoading(false);
+          setIsDialogOpen(false);
+          const jsConfetti = new JSConfetti();
+          jsConfetti.addConfetti();
+        }).catch(error => {
+          setIsLoading(false);
+          console.error('Error converting blob to base64:', error);
+        });
       })
       .catch(error => {
-        setIsLoading(false)
-        console.error('Error:', error)
+        setIsLoading(false);
+        console.error('Error:', error);
       });
-  }
+  };
+  
   return (
     <main className="flex flex-col h-screen">
-      {/* Barra fija superior */}
-      <section className="p-2 flex items-center fixed w-full bg-white z-10">
-        <div className="mr-3">
-          <Button variant={"secondary"} className="rounded-r-none rounded-l-sm border border-[#ececec] h-8">
-            <BetweenHorizonalStart size={18} className="text-[#949393]" />
-          </Button>
-          <Button variant={"secondary"} className="rounded-l-none rounded-r-sm border border-[#ececec] h-8">
-            <Table size={18} className="text-[#949393]" />
-          </Button>
-        </div>
-        <div className="flex items-center rounded-sm border-2 border-[#ececec] px-2 py-1 h-8">
-          <Search size={18} className="text-[#dcdada] mr-2" />
-          <input onChange={(e) => setSearch(e.target.value)} className="outline-none border-none caret-[#dcdada] text-[#c2c1c1]" type="text" />
+      <section className="p-2 flex fixed w-full bg-white z-10 flex-col">
+        <h1 className='text-3xl font-bold'>📷 Stock.ai</h1>
+        <div className='flex'>
+          <div className="mr-3 flex">
+            <Button variant={"secondary"} className="rounded-r-none rounded-l-sm border border-[#ececec] h-8">
+              <BetweenHorizonalStart size={18} className="text-[#949393]" />
+            </Button>
+            <Button variant={"secondary"} className="rounded-l-none rounded-r-sm border border-[#ececec] h-8">
+              <Table size={18} className="text-[#949393]" />
+            </Button>
+          </div>
+          <div className="flex items-center rounded-sm border-2 border-[#ececec] px-2 py-1 h-8 w-72">
+            <Search size={18} className="text-[#dcdada] mr-2" />
+            <input onChange={(e) => setSearch(e.target.value)} className="outline-none border-none caret-[#dcdada] text-[#c2c1c1]" type="text" />
+          </div>
         </div>
       </section>
 
-      {/* Sección de imágenes */}
-      <section className="flex-1 grid grid-cols-2 grid-rows-4 gap-[2px] p-2 pt-14 lg:grid-cols-6 overflow-y-auto">
+      <section className="flex-1 grid grid-cols-2 grid-rows-4 gap-[2px] p-2 pt-24 lg:grid-cols-6 overflow-y-auto">
         {
           filteredImages.map((image) => (
             <ImageCard key={image.id} image={image.image} prompt={image.prompt} />
@@ -151,10 +193,8 @@ export default function Home() {
         }
       </section>
 
-      {/* Sección de diálogo */}
       <section className="absolute bottom-1 left-1">
-        {/* Diálogo de generación de imagen */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        {images.length <= 30 ? (<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger onClick={() => setIsDialogOpen(true)} asChild>
             <Button>
               <Sparkles size={18} className="text-white" />Generate
@@ -183,7 +223,8 @@ export default function Home() {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
+        </Dialog>) : (<></>)}
+
       </section>
     </main>
   );
