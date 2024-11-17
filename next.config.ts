@@ -6,8 +6,8 @@ const nextConfig: NextConfig = {
     domains: ['storage.sujjeee.com'],
   },
   env: {
-    API_URL: 'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large',
-    API_TOKEN: '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'
+    API_URL: process.env.API_URL,
+    API_TOKEN: process.env.API_TOKEN
   }
 };
 
