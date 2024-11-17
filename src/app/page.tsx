@@ -1,101 +1,190 @@
+"use client"
+import JSConfetti from 'js-confetti'
+import { Button } from "@/components/ui/button";
+import { BetweenHorizonalStart, Check, Copy, Download, Info, Loader, Search, Sparkles, Table } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import Image from "next/image";
+function ImageCard({ image, prompt }: { image: string, prompt: string }) {
+  const [copy, setCopy] = useState(false);
+
+  const handleCopy = async () => {
+    setCopy(true);
+    console.log(prompt);
+    await navigator.clipboard.writeText(prompt)
+    setTimeout(() => {
+      setCopy(false);
+    }, 500);
+  };
+
+
+  const handleDownload = () => {
+    const link = document.createElement("a");
+    link.href = image;
+    link.download = "downloaded-image.png";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  return (
+    <article
+      className={`bg-[#f2f2f2] relative inset-0 bg-center bg-cover bg-no-repeat`}
+      style={{ backgroundImage: `url(${image})` }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+      <Info size={20} className="absolute bottom-1 left-1 text-[#5c5c5c] p-1 bg-white rounded-sm cursor-pointer border border-[#cecece]"></Info>
+      {copy === false ? (
+        <Copy
+          onClick={handleCopy}
+          size={18}
+          className="absolute bottom-1 right-1 cursor-pointer text-white"
+        />
+      ) : (
+        <Check
+          size={18}
+          className="absolute bottom-1 right-1 cursor-pointer text-white"
+        />
+      )}
+      <Download
+        onClick={handleDownload}
+        size={18}
+        className="absolute bottom-1 right-8 cursor-pointer text-white"
+      ></Download>
+    </article>
+  );
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [carousel, setCarousel] = useState("https://storage.sujjeee.com/images/gxngx12yd4.jpe")
+  const [images, setImages] = useState<{ id: string, image: string, prompt: string }[]>([]);
+  const [filteredImages, setfilteredImages] = useState<{ id: string, image: string, prompt: string }[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    const images = ["https://storage.sujjeee.com/images/ol2zrygn2g.jpeg",
+      "https://storage.sujjeee.com/images/2k6migyopw.jpeg",
+      "https://storage.sujjeee.com/images/xeetwuqaft.jpeg",
+      "https://storage.sujjeee.com/images/t0tafz50nk.jpeg"]
+    const intervalId = setInterval(() => {
+      const imageIndex = Math.floor(Math.random() * images.length);
+      setCarousel(images[imageIndex]);
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [])
+  useEffect(() => {
+    setfilteredImages(
+      images.filter(image => image.prompt.includes(search))
+    );
+  }, [search, images]);
+  const handlePrompt = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formElement = e.currentTarget.elements
+    const prompt = formElement.namedItem("prompt") as HTMLInputElement
+    const headers = {
+      'Authorization': `Bearer ${process.env.API_TOKEN}`,
+      'Content-Type': 'application/json',
+    };
+    setIsLoading(true)
+    fetch(`${process.env.API_URL}`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(prompt.value),
+    })
+      .then(response => response.blob())
+      .then(imageBlob => {
+        const imageUrl = URL.createObjectURL(imageBlob);
+        setImages((prevImage) => [
+          ...prevImage,
+          {
+            id: imageUrl,
+            image: imageUrl,
+            prompt: prompt.value
+          }
+        ])
+        setIsLoading(false)
+        setIsDialogOpen(false);
+        const jsConfetti = new JSConfetti()
+        jsConfetti.addConfetti()
+      })
+      .catch(error => {
+        setIsLoading(false)
+        console.error('Error:', error)
+      });
+  }
+  return (
+    <main className="flex flex-col h-screen">
+      {/* Barra fija superior */}
+      <section className="p-2 flex items-center fixed w-full bg-white z-10">
+        <div className="mr-3">
+          <Button variant={"secondary"} className="rounded-r-none rounded-l-sm border border-[#ececec] h-8">
+            <BetweenHorizonalStart size={18} className="text-[#949393]" />
+          </Button>
+          <Button variant={"secondary"} className="rounded-l-none rounded-r-sm border border-[#ececec] h-8">
+            <Table size={18} className="text-[#949393]" />
+          </Button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        <div className="flex items-center rounded-sm border-2 border-[#ececec] px-2 py-1 h-8">
+          <Search size={18} className="text-[#dcdada] mr-2" />
+          <input onChange={(e) => setSearch(e.target.value)} className="outline-none border-none caret-[#dcdada] text-[#c2c1c1]" type="text" />
+        </div>
+      </section>
+
+      {/* Sección de imágenes */}
+      <section className="flex-1 grid grid-cols-2 grid-rows-4 gap-[2px] p-2 pt-14 lg:grid-cols-6 overflow-y-auto">
+        {
+          filteredImages.map((image) => (
+            <ImageCard key={image.id} image={image.image} prompt={image.prompt} />
+          ))
+        }
+      </section>
+
+      {/* Sección de diálogo */}
+      <section className="absolute bottom-1 left-1">
+        {/* Diálogo de generación de imagen */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger onClick={() => setIsDialogOpen(true)} asChild>
+            <Button>
+              <Sparkles size={18} className="text-white" />Generate
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Make your own image</DialogTitle>
+              <DialogDescription>
+                Make text prompt to image with just one click.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handlePrompt} action="">
+              <div className="grid gap-4 py-4">
+                <Image className="w-full rounded-md" src={`${carousel}`} alt="" height={1000} width={1000} />
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Input
+                    id="prompt"
+                    defaultValue="Type your prompt here"
+                    className="col-span-4"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit">{isLoading ? (<Loader className="animate-spin" />) : <><Sparkles size={18} className="text-white" /><span>Do it!</span></>}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </section>
+    </main>
   );
 }
