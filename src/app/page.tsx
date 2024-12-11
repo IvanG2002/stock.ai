@@ -1,7 +1,7 @@
 "use client"
 import JSConfetti from 'js-confetti'
 import { Button } from "@/components/ui/button";
-import { BetweenHorizonalStart, Check, Copy, Download, Info, Loader, Search, Sparkles, Table } from "lucide-react";
+import { BetweenHorizonalStart, Check, Copy, Download, Info, Loader, Moon, Search, Sparkles, Sun, Table } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import {
   Dialog,
@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import Image from "next/image";
+import { useTheme } from './context/ThemeContext';
+
 function ImageCard({ image, prompt }: { image: string, prompt: string }) {
   const [copy, setCopy] = useState(false);
 
@@ -71,6 +73,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const images = ["https://storage.sujjeee.com/images/ol2zrygn2g.jpeg",
@@ -91,7 +94,7 @@ export default function Home() {
       setImages(JSON.parse(storedImages));
     }
   }, []);
-  
+
   useEffect(() => {
     setfilteredImages(
       images.filter(image => image.prompt.includes(search))
@@ -113,7 +116,7 @@ export default function Home() {
       reader.readAsDataURL(blob);
     });
   };
-  
+
 
   const handlePrompt = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -124,7 +127,7 @@ export default function Home() {
       'Content-Type': 'application/json',
     };
     setIsLoading(true);
-    
+
     fetch(`${process.env.API_URL}`, {
       method: 'POST',
       headers: headers,
@@ -132,16 +135,14 @@ export default function Home() {
     })
       .then(response => response.blob())
       .then(imageBlob => {
-        // Convert blob to base64
         blob2base64(imageBlob, 'image/png').then(base64Image => {
-          // Use the base64 image in your app
-          
+
           setImages((prevImages) => {
             const updatedImages = [
               ...prevImages,
               {
                 id: base64Image,
-                image: base64Image,  // Store the base64 string as image source
+                image: base64Image,
                 prompt: prompt.value,
               },
             ];
@@ -149,7 +150,7 @@ export default function Home() {
             localStorage.setItem("images", JSON.stringify(updatedImages));
             return updatedImages;
           });
-  
+
           setIsLoading(false);
           setIsDialogOpen(false);
           const jsConfetti = new JSConfetti();
@@ -164,40 +165,45 @@ export default function Home() {
         console.error('Error:', error);
       });
   };
-  
+
   return (
     <main className="flex flex-col h-screen">
-      <section className="p-2 flex fixed w-full bg-white z-10 flex-col">
-        <h1 className='text-3xl font-bold'>📷 Stock.ai</h1>
-        <div className='flex'>
-          <div className="mr-3 flex">
-            <Button variant={"secondary"} className="rounded-r-none rounded-l-sm border border-[#ececec] h-8">
-              <BetweenHorizonalStart size={18} className="text-[#949393]" />
-            </Button>
-            <Button variant={"secondary"} className="rounded-l-none rounded-r-sm border border-[#ececec] h-8">
-              <Table size={18} className="text-[#949393]" />
-            </Button>
-          </div>
-          <div className="flex items-center rounded-sm border-2 border-[#ececec] px-2 py-1 h-8 w-72">
-            <Search size={18} className="text-[#dcdada] mr-2" />
-            <input onChange={(e) => setSearch(e.target.value)} className="outline-none border-none caret-[#dcdada] text-[#c2c1c1]" type="text" />
-          </div>
+      <section className="p-2 flex fixed w-full bg-white dark:bg-[#1a1919] z-10 flex-col transition-colors duration-500">
+        <div className='flex justify-between items-center px-5'>
+          <h1 className='text-3xl font-bold dark:text-[#fff] transition-colors duration-500'>📷 Stock.ai</h1>
+          {theme === 'light' ? (<Moon className='cursor-pointer' onClick={toggleTheme}
+            size={18}></Moon>) : (<Sun className='cursor-pointer dark:text-[#fff] transition-colors duration-500' onClick={toggleTheme}
+              size={18} />)}
+        </div>
+        <div className='flex justify-between lg:px-5'>
+          <section className='flex'>
+            <div className="mr-3 flex">
+              <Button variant={"secondary"} className="rounded-r-none rounded-l-sm border border-[#ececec] h-8">
+                <BetweenHorizonalStart size={18} className="text-[#949393]" />
+              </Button>
+              <Button variant={"secondary"} className="rounded-l-none rounded-r-sm border border-[#ececec] h-8">
+                <Table size={18} className="text-[#949393]" />
+              </Button>
+            </div>
+            <div className="flex items-center rounded-sm border-2 border-[#ececec] px-2 py-1 h-8 lg:w-72">
+              <Search size={18} className="text-[#dcdada] mr-2" />
+              <input onChange={(e) => setSearch(e.target.value)} className="outline-none border-none caret-[#dcdada] text-[#c2c1c1] bg-transparent" type="text" />
+            </div>
+          </section>
         </div>
       </section>
-
-      <section className="flex-1 grid grid-cols-2 grid-rows-4 gap-[2px] p-2 pt-24 lg:grid-cols-6 overflow-y-auto">
+      <section className="flex-1 grid grid-cols-2 grid-rows-4 gap-[2px] p-2 pt-24 lg:grid-cols-6 overflow-y-auto dark:bg-[#1a1919] transition-colors duration-500">
         {
           filteredImages.map((image) => (
             <ImageCard key={image.id} image={image.image} prompt={image.prompt} />
           ))
         }
       </section>
-
       <section className="absolute bottom-1 left-1">
         {images.length <= 30 ? (<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger onClick={() => setIsDialogOpen(true)} asChild>
             <Button>
-              <Sparkles size={18} className="text-white" />Generate
+              <Sparkles size={18} className="text-white dark:text-[#1a1919] transition-colors duration-500" />Generate
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
@@ -219,7 +225,7 @@ export default function Home() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">{isLoading ? (<Loader className="animate-spin" />) : <><Sparkles size={18} className="text-white" /><span>Do it!</span></>}</Button>
+                <Button type="submit">{isLoading ? (<Loader className="animate-spin" />) : <><Sparkles size={18} className="text-white dark:text-[#1a1919] transition-colors duration-500" /><span>Do it!</span></>}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
